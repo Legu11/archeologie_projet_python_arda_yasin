@@ -1,4 +1,6 @@
 import pygame
+import json
+import os
 
 from constants import *
 from enemy import Enemy
@@ -8,6 +10,8 @@ from projectile import Projectile
 from aztec_coin import AztecCoin
 
 class Game: 
+
+    SCORES_FILE = 'best_score.json'
 
     def __init__(self):
         # créer la fenêtre du jeu 
@@ -53,7 +57,9 @@ class Game:
 
         # créer un score
         self.score = 0
+        self.best_score = self.load_best_score()
         self.font = pygame.font.Font(None, 30)
+        self.font_large = pygame.font.Font(None, 60)
         
         # Système de santé (4 coeurs)
         self.health = 4
@@ -63,16 +69,46 @@ class Game:
         
         # Charger l'image du coeur
         self.heart_image = pygame.image.load('assets/images/red_heart.png')
-        self.heart_image = pygame.transform.scale(self.heart_image, (30, 30))
+        self.heart_image = pygame.transform.scale(self.heart_image, (40, 40))
 
-
-        # maintenir allumé la fenêtre du jeu
+        # État du jeu
         self.running = True
+        self.game_over = False
+        
+        # Bouton restart
+        self.restart_button = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 100, 200, 50)
 
-    def colision(self):         
+    def load_best_score(self):
+        """Charge le meilleur score depuis le fichier JSON"""
+        if os.path.exists(self.SCORES_FILE):
+            try:
+                with open(self.SCORES_FILE, 'r') as f:
+                    data = json.load(f)
+                    return data.get('best_score', 0)
+            except:
+                return 0
+        return 0
+    
+    def save_best_score(self):
+        """Sauvegarde le meilleur score dans un fichier JSON"""
+        # Vérifier si le score actuel est meilleur
+        if self.score > self.best_score:
+            self.best_score = self.score
+            try:
+                with open(self.SCORES_FILE, 'w') as f:
+                    json.dump({'best_score': self.best_score}, f)
+            except:
+                pass
+
+    def colision(self):
+        # Ne vérifier les collisions que si le jeu n'est pas terminé
+        if self.game_over:
+            return
+        
         # verifier si un ennemie touche le joueur
         if pygame.sprite.spritecollide(self.player, self.all_ennemies, True):
-            self.running = False
+            self.game_over = True
+            self.save_best_score()
             print("game over")
 
         # vérifier si le joueur touche la porte du temple
@@ -113,7 +149,8 @@ class Game:
                     
                     # Vérifier si le joueur est mort
                     if self.health <= 0:
-                        self.running = False
+                        self.game_over = True
+                        self.save_best_score()
                         print("game over - no more hearts")
     
     def enter_temple(self):
@@ -200,8 +237,63 @@ class Game:
         # Afficher les coeurs en fonction de la santé actuelle
         for i in range(self.health):
             self.screen.blit(self.heart_image, (heart_x - (i * 35), heart_y))
+    
+    def draw_game_over_screen(self):
+        """Affiche l'écran game over avec le score et le meilleur score"""
+        # Fond semi-transparent
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay.set_alpha(200)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+        
+        # Titre GAME OVER
+        game_over_text = self.font_large.render("GAME OVER", True, (255, 0, 0))
+        game_over_rect = game_over_text.get_rect(center=(SCREEN_WIDTH // 2, 100))
+        self.screen.blit(game_over_text, game_over_rect)
+        
+        # Score actuel
+        current_score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
+        self.screen.blit(current_score_text, (SCREEN_WIDTH // 2 - 100, 250))
+        
+        # Meilleur score
+        best_score_text = self.font.render(f"Best Score: {self.best_score}", True, (255, 215, 0))
+        self.screen.blit(best_score_text, (SCREEN_WIDTH // 2 - 120, 320))
+        
+        # Bouton restart
+        pygame.draw.rect(self.screen, (0, 128, 0), self.restart_button)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.restart_button, 2)
+        restart_text = self.font.render("RESTART", True, (255, 255, 255))
+        restart_rect = restart_text.get_rect(center=self.restart_button.center)
+        self.screen.blit(restart_text, restart_rect)
+    
+    def handle_game_over_click(self, pos):
+        """Gère le clic sur le bouton restart"""
+        if self.restart_button.collidepoint(pos):
+            self.reset_game()
+    
+    def reset_game(self):
+        """Réinitialise le jeu pour une nouvelle partie"""
+        self.score = 0
+        self.health = self.max_health
+        self.current_scene = "temple"
+        self.game_over = False
+        self.last_hit_time = 0
+        
+        # Réinitialiser le joueur
+        self.player.rect.x = 100
+        self.player.rect.y = GAME_FLOOR
+        
+        # Vider les groupes
+        self.interior_enemies.empty()
+        self.all_ennemies.empty()
+        self.coins.empty()
+        self.player.all_projectiles.empty()
 
     def keyboard(self):
+        # Ne pas traiter l'input du joueur si le jeu est terminé
+        if self.game_over:
+            return
+        
         keys = pygame.key.get_pressed()
         moved = False
 
@@ -234,23 +326,25 @@ class Game:
         clock = pygame.time.Clock() # initialiser une horloge
         while self.running:
 
-            self.colision()
+            # Mettre à jour les collisions et la logique de jeu seulement si le jeu n'est pas terminé
+            if not self.game_over:
+                self.colision()
 
-            # deplacer tout les projectiles
-            for projectile in self.player.all_projectiles:
-                projectile.move()
+                # deplacer tout les projectiles
+                for projectile in self.player.all_projectiles:
+                    projectile.move()
 
-            # deplacer tout les pièces
-            for coin in self.coins:
-                coin.fall()
+                # deplacer tout les pièces
+                for coin in self.coins:
+                    coin.fall()
 
-            # deplacer tout les ennemies (uniquement à l'extérieur du temple)
-            if self.current_scene == "temple":
-                for enemy in self.all_ennemies:
-                    enemy.move()
-            else:  # interior - les monstres suivent le joueur
-                for enemy in self.interior_enemies:
-                    enemy.follow_player(self.player)
+                # deplacer tout les ennemies (uniquement à l'extérieur du temple)
+                if self.current_scene == "temple":
+                    for enemy in self.all_ennemies:
+                        enemy.move()
+                else:  # interior - les monstres suivent le joueur
+                    for enemy in self.interior_enemies:
+                        enemy.follow_player(self.player)
 
             clock.tick(120) # 120 fps 
             self.keyboard()
@@ -260,7 +354,6 @@ class Game:
                 self.screen.blit(self.background_image, (0, 0))
             else:  # interior
                 self.screen.blit(self.interior_image, (0, 0))
-
             # dessiner le score
             score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
             self.screen.blit(score_text, (10, 10))
@@ -287,6 +380,11 @@ class Game:
             # Afficher les projectiles
             self.player.all_projectiles.draw(self.screen)
             self.screen.blit(self.player.image, self.player.rect)
+            
+            # Afficher l'écran game over si le jeu est terminé
+            if self.game_over:
+                self.draw_game_over_screen()
+            
             pygame.display.flip() # actualiser l'écran
 
             # on parcourt tous les evenements
@@ -295,3 +393,6 @@ class Game:
                     print("fermeture du jeu")
                     self.running = False
                     pygame.quit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.game_over:
+                        self.handle_game_over_click(event.pos)
