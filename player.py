@@ -1,6 +1,7 @@
 import pygame
 
 from constants import *
+from projectile import Projectile
 from animate_sprite import AnimateSprite
 
 class Player(AnimateSprite):
@@ -11,6 +12,14 @@ class Player(AnimateSprite):
         self.rect.x = 100
         self.rect.y = GAME_FLOOR
         self.speed = 3
+
+        # Groupe pour les projectiles
+        self.all_projectiles = pygame.sprite.Group()
+
+    def launch_projectile(self):
+        """Tire une balle"""
+        new_projectile = Projectile(self.rect.x, self.rect.y)
+        self.all_projectiles.add(new_projectile)
 
     def move_right(self):
         # verifier si on sort pas de l'écran a droite

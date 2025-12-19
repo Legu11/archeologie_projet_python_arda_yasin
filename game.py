@@ -4,6 +4,7 @@ from constants import *
 from enemy import Enemy
 from player import Player
 from temple_gate import TempleGate
+from projectile import Projectile
 
 class Game: 
 
@@ -112,6 +113,10 @@ class Game:
         # Appuyer sur E pour quitter l'intérieur du temple
         if keys[pygame.K_e] and self.current_scene == "interior":
             self.exit_temple()
+        
+        # Appuyer sur SPACE pour tirer (dans l'intérieur du temple)
+        if keys[pygame.K_SPACE] and self.current_scene == "interior":
+            self.player.launch_projectile()
 
 
     def run(self):
@@ -119,6 +124,10 @@ class Game:
         while self.running:
 
             self.colision()
+
+            # deplacer tout les projectiles
+            for projectile in self.player.all_projectiles:
+                projectile.move()
 
             # deplacer tout les ennemies (uniquement à l'extérieur du temple)
             if self.current_scene == "temple":
@@ -145,9 +154,11 @@ class Game:
                 self.draw_marker(self.gate_marker_x, self.gate_marker_y, color=(100, 200, 255))
             else:  # interior
                 # afficher un message pour quitter
-                exit_text = self.font.render("Appuyez sur E pour quitter", True, (255, 255, 255))
-                self.screen.blit(exit_text, (SCREEN_WIDTH // 2 - 150, 50))
+                exit_text = self.font.render("Appuyez sur E pour quitter, SPACE pour tirer", True, (255, 255, 255))
+                self.screen.blit(exit_text, (SCREEN_WIDTH // 2 - 220, 50))
             
+            # Afficher les projectiles
+            self.player.all_projectiles.draw(self.screen)
             self.screen.blit(self.player.image, self.player.rect)
             pygame.display.flip() # actualiser l'écran
 
