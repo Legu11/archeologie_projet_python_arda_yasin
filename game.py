@@ -8,6 +8,9 @@ from player import Player
 from temple_gate import TempleGate
 from projectile import Projectile
 from aztec_coin import AztecCoin
+from shake_animation import ShakeAnimation
+from scene_manager import SceneManager
+from ui_renderer import UIRenderer
 
 class Game: 
 
@@ -68,6 +71,15 @@ class Game:
         # Variables pour la transition simple
         self.transition_alpha = 0
         self.transition_active = False
+        
+        # Effet de shake et overlay rouge
+        self.shake_animation = ShakeAnimation(duration=300, intensity=5)
+        
+        # Gestionnaire de scènes
+        self.scene_manager = SceneManager(self)
+        
+        # Gestionnaire UI
+        self.ui_renderer = UIRenderer(self)
 
     def _load_image(self, path, width, height):
         """Charge et redimensionne une image"""
@@ -75,25 +87,8 @@ class Game:
         image = pygame.transform.scale(image, (width, height))
         return image.convert_alpha()
     
-    def _create_enemy_at_location(self, location):
-        """Crée un ennemi à une position spécifique (left, right, top)"""
-        enemy = Enemy()
-        if location == 'left':
-            enemy.rect.x = -200
-            enemy.rect.y = GAME_FLOOR - 150
-        elif location == 'right':
-            enemy.rect.x = SCREEN_WIDTH + 100
-            enemy.rect.y = GAME_FLOOR - 150
-        else:  # top
-            enemy.rect.x = SCREEN_WIDTH // 2 - 75
-            enemy.rect.y = -200
-        return enemy
-    
-    def _render_centered_text(self, text, font, color, center_pos):
-        """Rend et affiche un texte centré"""
-        text_surface = font.render(text, True, color)
-        text_rect = text_surface.get_rect(center=center_pos)
-        self.screen.blit(text_surface, text_rect)
+
+
 
     def load_best_score(self):
         """Charge le meilleur score depuis le fichier JSON"""
@@ -115,31 +110,10 @@ class Game:
                     json.dump({'best_score': self.best_score}, f)
             except:
                 pass
+
     
-    def draw_transition(self):
-        """Affiche un overlay noir pour la transition"""
-        if self.transition_alpha > 0:
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-            overlay.set_alpha(self.transition_alpha)
-            overlay.fill((0, 0, 0))
-            self.screen.blit(overlay, (0, 0))
-    
-    def update_transition(self):
-        """Met à jour l'alpha de la transition"""
-        if self.transition_active:
-            self.transition_alpha -= 1  # Fade out progressif (très lent)
-            if self.transition_alpha <= 0:
-                self.transition_alpha = 0
-                self.transition_active = False
-    
-    def draw_score(self):
-        """Affiche le score de manière sobre avec le coin aztèque"""
-        # Afficher le coin
-        self.screen.blit(self.coin_icon, (10, 10))
-        
-        # Afficher le score à côté du coin
-        score_text = self.font_score.render(str(self.score), True, (255, 215, 0))
-        self.screen.blit(score_text, (50, 12))
+
+
     
     def update_exit_text(self):
         """Met en cache le texte de sortie pour ne pas le re-renderer chaque frame"""
@@ -159,7 +133,7 @@ class Game:
         # vérifier si le joueur touche la porte du temple
         if self.current_scene == "temple":
             if pygame.sprite.spritecollide(self.player, self.gate_group, False):
-                self.enter_temple()
+                self.scene_manager.enter_temple()
         
         # Collisions intérieures du temple
         if self.current_scene == "interior":
@@ -180,7 +154,7 @@ class Game:
                             self.score += 100
                             
                             # Respawner un monstre au même endroit
-                            self.respawn_interior_enemy()
+                            self.scene_manager.respawn_interior_enemy()
             
             # Vérifier si le joueur ramasse les pièces
             collected_coins = pygame.sprite.spritecollide(self.player, self.coins, True)
@@ -195,6 +169,7 @@ class Game:
                 if current_time - self.last_hit_time > self.hit_cooldown:
                     self.health -= 1
                     self.last_hit_time = current_time
+                    self.shake_animation.trigger()  # Déclencher l'effet de hit
                     print(f"Hit! Health: {self.health}/4")
                     
                     if self.health <= 0:
@@ -202,129 +177,18 @@ class Game:
                         self.save_best_score()
                         print("game over - no more hearts")
     
-    def enter_temple(self):
-        """Entrer à l'intérieur du temple avec transition"""
-        self.current_scene = "interior"
-        self.player.rect.x = 455
-        self.player.rect.y = GAME_FLOOR
-        self.player.last_shot_time = 0
-        self.spawn_interior_enemies()
-        # Déclencher la transition
-        self.transition_alpha = 220  # Fade rapide
-        self.transition_active = True
-    
-    def spawn_interior_enemies(self):
-        """Spawn les monstres aztèques à l'intérieur du temple en dehors de l'écran"""
-        self.interior_enemies.empty()
-        for location in ['left', 'right', 'top']:
-            enemy = self._create_enemy_at_location(location)
-            self.interior_enemies.add(enemy)
-    
-    def respawn_interior_enemy(self):
-        """Respawner un nouveau monstre aléatoirement depuis un côté"""
-        import random
-        spawn_location = random.choice(['left', 'right', 'top'])
-        enemy = self._create_enemy_at_location(spawn_location)
-        self.interior_enemies.add(enemy)
-    
-    def exit_temple(self):
-        """Quitter l'intérieur du temple"""
-        self.current_scene = "temple"
-        # Repositionner le joueur devant la porte
-        self.player.rect.x = 700
-        self.player.rect.y = GAME_FLOOR
-        
-        # Nettoyer les ennemis intérieurs, les pièces et les projectiles
-        self.interior_enemies.empty()
-        self.coins.empty()
-        self.player.all_projectiles.empty()
 
-    def draw_animated_arrow(self, x, y):
-        """Dessine une flèche animée qui monte et descend pour indiquer l'emplacement de la téléportation"""
-        # animation oscillante avec inversion de direction
-        self.arrow_offset += self.arrow_speed * self.arrow_direction
-        
-        # Inverser la direction quand la flèche atteint les limites
-        if self.arrow_offset >= 20 or self.arrow_offset <= -20:
-            self.arrow_direction *= -1
-        
-        arrow_y = y + self.arrow_offset
-        
-        # Dessiner la flèche (triangle pointant vers le haut)
-        arrow_size = 25
-        tip = (x, arrow_y - arrow_size)
-        
-        # Base de la flèche
-        left_base = (x - arrow_size, arrow_y)
-        right_base = (x + arrow_size, arrow_y)
-        
-        points = [tip, left_base, right_base]
-        pygame.draw.polygon(self.screen, (255, 215, 0), points)
-        pygame.draw.polygon(self.screen, (255, 255, 255), points, 3)
-        pygame.draw.line(self.screen, (255, 215, 0), left_base, right_base, 4)
-        pygame.draw.line(self.screen, (255, 255, 255), left_base, right_base, 2)
     
-    def draw_marker(self, x, y, color=(100, 255, 100), radius=20):
-        """Dessine un marqueur visible à une position donnée"""
-        pygame.draw.circle(self.screen, color, (x, y), radius)
-        pygame.draw.circle(self.screen, (255, 255, 255), (x, y), radius, 3)
-        pygame.draw.line(self.screen, (255, 255, 255), (x - 10, y), (x + 10, y), 2)
-        pygame.draw.line(self.screen, (255, 255, 255), (x, y - 10), (x, y + 10), 2)
+
     
-    def draw_enemy_health_bars(self):
-        """Dessine les barres de vie de tous les ennemis"""
-        for enemy in self.interior_enemies:
-            bar_width = 40
-            bar_height = 5
-            bar_x = enemy.rect.centerx - bar_width // 2
-            bar_y = enemy.rect.top - 15
-            
-            pygame.draw.rect(self.screen, (200, 0, 0), (bar_x, bar_y, bar_width, bar_height))
-            
-            # calcul du ratio de santé pour la barre en pixels
-            health_percentage = enemy.health / enemy.max_health
-            health_width = bar_width * health_percentage
-            pygame.draw.rect(self.screen, (0, 255, 0), (bar_x, bar_y, health_width, bar_height))
-            
-            pygame.draw.rect(self.screen, (255, 255, 255), (bar_x, bar_y, bar_width, bar_height), 1)
+
     
-    def draw_hearts(self):
-        """Dessine les coeurs visuels dans le coin supérieur droit"""
-        heart_x = SCREEN_WIDTH - 40
-        heart_y = 10
-        for i in range(self.health):
-            self.screen.blit(self.heart_image, (heart_x - (i * 35), heart_y))
-    
-    def draw_game_over_screen(self):
-        """Affiche l'écran game over avec le score et le meilleur score"""
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(200)
-        overlay.fill((0, 0, 0))
-        self.screen.blit(overlay, (0, 0))
-        
-        panel_width = 500
-        panel_height = 350
-        panel_x = SCREEN_WIDTH // 2 - panel_width // 2
-        panel_y = SCREEN_HEIGHT // 2 - panel_height // 2
-        
-        pygame.draw.rect(self.screen, (20, 20, 40), (panel_x, panel_y, panel_width, panel_height), border_radius=15)
-        pygame.draw.rect(self.screen, (255, 215, 0), (panel_x, panel_y, panel_width, panel_height), 4, border_radius=15)
-        
-        self._render_centered_text("GAME OVER", self.font_large, (255, 0, 0), (SCREEN_WIDTH // 2, panel_y + 40))
-        
-        pygame.draw.line(self.screen, (255, 215, 0), (panel_x + 30, panel_y + 90), (panel_x + panel_width - 30, panel_y + 90), 2)
-        
-        self._render_centered_text(f"Score Final: {self.score}", self.font, (200, 200, 255), (SCREEN_WIDTH // 2, panel_y + 140))
-        self._render_centered_text(f"Meilleur Score: {self.best_score}", self.font, (255, 215, 0), (SCREEN_WIDTH // 2, panel_y + 190))
-        
-        button_hover = self.restart_button.collidepoint(pygame.mouse.get_pos())
-        if button_hover:
-            pygame.draw.rect(self.screen, (0, 200, 0), self.restart_button, border_radius=8)
-        else:
-            pygame.draw.rect(self.screen, (0, 150, 0), self.restart_button, border_radius=8)
-        
-        pygame.draw.rect(self.screen, (255, 255, 255), self.restart_button, 3, border_radius=8)
-        self._render_centered_text("RESTART", self.font, (255, 255, 255), self.restart_button.center)
+
+
+
+
+
+
     
     def handle_game_over_click(self, pos):
         """Gère le clic sur le bouton restart"""
@@ -372,7 +236,7 @@ class Game:
             self.player.stop_moving()
         
         if keys[pygame.K_e] and self.current_scene == "interior":
-            self.exit_temple()
+            self.scene_manager.exit_temple()
         
         if keys[pygame.K_SPACE] and self.current_scene == "interior":
             self.player.launch_projectile()
@@ -400,27 +264,30 @@ class Game:
                         enemy.follow_player(self.player)
             
             # Mettre à jour la transition
-            self.update_transition()
+            self.scene_manager.update_transition()
 
             clock.tick(100) 
             self.keyboard()
             
+            # Récupérer l'offset de shake
+            shake_x, shake_y = self.shake_animation.get_shake_offset()
+            
             # afficher le fond d'écran approprié selon la scène
             if self.current_scene == "temple":
-                self.screen.blit(self.background_image, (0, 0))
+                self.screen.blit(self.background_image, (shake_x, shake_y))
             else:  
-                self.screen.blit(self.interior_image, (0, 0))
+                self.screen.blit(self.interior_image, (shake_x, shake_y))
             
             # Afficher le score avec le coin aztèque
-            self.draw_score()
+            self.ui_renderer.draw_score()
             
-            self.draw_hearts()
+            self.ui_renderer.draw_hearts()
             
             # afficher les éléments selon la scène
             if self.current_scene == "temple":
                 self.all_ennemies.draw(self.screen)
                 # Afficher la flèche animée indiquant l'emplacement de la téléportation
-                self.draw_animated_arrow(self.gate_marker_x, self.gate_marker_y)
+                self.ui_renderer.draw_animated_arrow(self.gate_marker_x, self.gate_marker_y)
             else:  # interior
                 # Afficher le message pour quitter (utiliser le texte en cache)
                 if self.exit_text:
@@ -430,7 +297,7 @@ class Game:
                 self.interior_enemies.draw(self.screen)
                 
                 # Afficher les barres de vie des monstres
-                self.draw_enemy_health_bars()
+                self.ui_renderer.draw_enemy_health_bars()
                 
                 # Afficher les pièces
                 self.coins.draw(self.screen)
@@ -440,10 +307,13 @@ class Game:
             self.screen.blit(self.player.image, self.player.rect)
             
             if self.game_over:
-                self.draw_game_over_screen()
+                self.ui_renderer.draw_game_over_screen()
             
             # Afficher la transition
-            self.draw_transition()
+            self.ui_renderer.draw_transition()
+            
+            # Afficher l'effet de hit (overlay rouge)
+            self.shake_animation.draw_red_flash(self.screen)
             
             pygame.display.flip() # actualiser l'écran
 
