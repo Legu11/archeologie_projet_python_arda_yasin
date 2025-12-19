@@ -5,6 +5,7 @@ from enemy import Enemy
 from player import Player
 from temple_gate import TempleGate
 from projectile import Projectile
+from aztec_coin import AztecCoin
 
 class Game: 
 
@@ -40,11 +41,14 @@ class Game:
         self.interior_marker_x = 100
         self.interior_marker_y = GAME_FLOOR
 
-        # creer le groupe avec les ennemies
+        # Groupe pour les ennemis intérieurs du temple
+        self.interior_enemies = pygame.sprite.Group()
+        
+        # creer le groupe avec les ennemies (vide pour l'instant, rempli uniquement à l'intérieur)
         self.all_ennemies = pygame.sprite.Group()
-        self.all_ennemies.add(Enemy())
-        self.all_ennemies.add(Enemy())
-        self.all_ennemies.add(Enemy())
+        
+        # Groupe pour les pièces aztèques
+        self.coins = pygame.sprite.Group()
         
 
         # créer un score
@@ -65,6 +69,30 @@ class Game:
         if self.current_scene == "temple":
             if pygame.sprite.spritecollide(self.player, self.gate_group, False):
                 self.enter_temple()
+        
+        # Collisions intérieures du temple
+        if self.current_scene == "interior":
+            # Vérifier si les projectiles touchent les monstres
+            for projectile in self.player.all_projectiles:
+                hit_enemies = pygame.sprite.spritecollide(projectile, self.interior_enemies, True)
+                if hit_enemies:
+                    projectile.kill()
+                    for enemy in hit_enemies:
+                        # Laisser tomber une pièce
+                        coin = AztecCoin(enemy.rect.x, enemy.rect.y)
+                        self.coins.add(coin)
+                        self.score += 100
+            
+            # Vérifier si le joueur ramasse les pièces
+            collected_coins = pygame.sprite.spritecollide(self.player, self.coins, True)
+            for coin in collected_coins:
+                self.score += 50
+                print(f"Coin collected! Score: {self.score}")
+            
+            # Vérifier si un monstre touche le joueur (game over)
+            if pygame.sprite.spritecollide(self.player, self.interior_enemies, False):
+                self.running = False
+                print("game over")
     
     def enter_temple(self):
         """Entrer à l'intérieur du temple"""
@@ -72,6 +100,31 @@ class Game:
         # Repositionner le joueur à l'entrée de l'intérieur
         self.player.rect.x = 100
         self.player.rect.y = GAME_FLOOR
+        
+        # Spawn des monstres aztèques à l'intérieur
+        self.spawn_interior_enemies()
+    
+    def spawn_interior_enemies(self):
+        """Spawn les monstres aztèques à l'intérieur du temple en dehors de l'écran"""
+        self.interior_enemies.empty()
+        
+        # Monstre venant de la gauche (off-screen)
+        enemy_left = Enemy()
+        enemy_left.rect.x = -200
+        enemy_left.rect.y = GAME_FLOOR - 150
+        self.interior_enemies.add(enemy_left)
+        
+        # Monstre venant de la droite (off-screen)
+        enemy_right = Enemy()
+        enemy_right.rect.x = SCREEN_WIDTH + 100
+        enemy_right.rect.y = GAME_FLOOR - 150
+        self.interior_enemies.add(enemy_right)
+        
+        # Monstre venant du haut (off-screen)
+        enemy_top = Enemy()
+        enemy_top.rect.x = SCREEN_WIDTH // 2 - 75
+        enemy_top.rect.y = -200
+        self.interior_enemies.add(enemy_top)
     
     def exit_temple(self):
         """Quitter l'intérieur du temple"""
@@ -79,6 +132,11 @@ class Game:
         # Repositionner le joueur devant la porte
         self.player.rect.x = 700
         self.player.rect.y = GAME_FLOOR
+        
+        # Nettoyer les ennemis intérieurs, les pièces et les projectiles
+        self.interior_enemies.empty()
+        self.coins.empty()
+        self.player.all_projectiles.empty()
 
     def draw_marker(self, x, y, color=(100, 255, 100), radius=20):
         """Dessine un marqueur visible à une position donnée"""
@@ -129,10 +187,17 @@ class Game:
             for projectile in self.player.all_projectiles:
                 projectile.move()
 
+            # deplacer tout les pièces
+            for coin in self.coins:
+                coin.fall()
+
             # deplacer tout les ennemies (uniquement à l'extérieur du temple)
             if self.current_scene == "temple":
                 for enemy in self.all_ennemies:
                     enemy.move()
+            else:  # interior - les monstres suivent le joueur
+                for enemy in self.interior_enemies:
+                    enemy.follow_player(self.player)
 
             clock.tick(120) # 120 fps 
             self.keyboard()
@@ -156,6 +221,12 @@ class Game:
                 # afficher un message pour quitter
                 exit_text = self.font.render("Appuyez sur E pour quitter, SPACE pour tirer", True, (255, 255, 255))
                 self.screen.blit(exit_text, (SCREEN_WIDTH // 2 - 220, 50))
+                
+                # Afficher les monstres intérieurs
+                self.interior_enemies.draw(self.screen)
+                
+                # Afficher les pièces
+                self.coins.draw(self.screen)
             
             # Afficher les projectiles
             self.player.all_projectiles.draw(self.screen)
