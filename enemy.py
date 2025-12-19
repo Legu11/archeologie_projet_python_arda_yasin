@@ -25,7 +25,6 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.y = GAME_FLOOR - random.randint(10, 300)
         self.speed = 1.5
         
-        # Système de santé
         self.max_health = 3
         self.health = self.max_health
 

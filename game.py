@@ -18,13 +18,8 @@ class Game:
         pygame.display.set_caption("Mon Premier Jeu")
 
         # Charger et convertir les images de fond (pour meilleure performance)
-        self.background_image = pygame.image.load('assets/images/temple.png')
-        self.background_image = pygame.transform.scale(self.background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.background_image = self.background_image.convert()
-        
-        self.interior_image = pygame.image.load('assets/images/archeology_site.jpg')
-        self.interior_image = pygame.transform.scale(self.interior_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.interior_image = self.interior_image.convert()
+        self.background_image = self._load_image('assets/images/temple.png', SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.interior_image = self._load_image('assets/images/archeology_site.jpg', SCREEN_WIDTH, SCREEN_HEIGHT)
         
         self.current_scene = "temple"
         self.player = Player()
@@ -62,14 +57,37 @@ class Game:
         self.max_health = 4
         self.last_hit_time = 0
         self.hit_cooldown = 1000
-        
-        self.heart_image = pygame.image.load('assets/images/red_heart.png')
-        self.heart_image = pygame.transform.scale(self.heart_image, (40, 40))
-        self.heart_image = self.heart_image.convert_alpha()
+        self.heart_image = self._load_image('assets/images/red_heart.png', 40, 40)
 
         self.running = True
         self.game_over = False
         self.restart_button = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 100, 200, 50)
+
+    def _load_image(self, path, width, height):
+        """Charge et redimensionne une image"""
+        image = pygame.image.load(path)
+        image = pygame.transform.scale(image, (width, height))
+        return image.convert_alpha()
+    
+    def _create_enemy_at_location(self, location):
+        """Crée un ennemi à une position spécifique (left, right, top)"""
+        enemy = Enemy()
+        if location == 'left':
+            enemy.rect.x = -200
+            enemy.rect.y = GAME_FLOOR - 150
+        elif location == 'right':
+            enemy.rect.x = SCREEN_WIDTH + 100
+            enemy.rect.y = GAME_FLOOR - 150
+        else:  # top
+            enemy.rect.x = SCREEN_WIDTH // 2 - 75
+            enemy.rect.y = -200
+        return enemy
+    
+    def _render_centered_text(self, text, font, color, center_pos):
+        """Rend et affiche un texte centré"""
+        text_surface = font.render(text, True, color)
+        text_rect = text_surface.get_rect(center=center_pos)
+        self.screen.blit(text_surface, text_rect)
 
     def load_best_score(self):
         """Charge le meilleur score depuis le fichier JSON"""
@@ -170,40 +188,16 @@ class Game:
     def spawn_interior_enemies(self):
         """Spawn les monstres aztèques à l'intérieur du temple en dehors de l'écran"""
         self.interior_enemies.empty()
-        
-        enemy_left = Enemy()
-        enemy_left.rect.x = -200
-        enemy_left.rect.y = GAME_FLOOR - 150
-        self.interior_enemies.add(enemy_left)
-        
-        enemy_right = Enemy()
-        enemy_right.rect.x = SCREEN_WIDTH + 100
-        enemy_right.rect.y = GAME_FLOOR - 150
-        self.interior_enemies.add(enemy_right)
-        
-        enemy_top = Enemy()
-        enemy_top.rect.x = SCREEN_WIDTH // 2 - 75
-        enemy_top.rect.y = -200
-        self.interior_enemies.add(enemy_top)
+        for location in ['left', 'right', 'top']:
+            enemy = self._create_enemy_at_location(location)
+            self.interior_enemies.add(enemy)
     
     def respawn_interior_enemy(self):
         """Respawner un nouveau monstre aléatoirement depuis un côté"""
         import random
         spawn_location = random.choice(['left', 'right', 'top'])
-        
-        new_enemy = Enemy()
-        
-        if spawn_location == 'left':
-            new_enemy.rect.x = -200
-            new_enemy.rect.y = GAME_FLOOR - 150
-        elif spawn_location == 'right':
-            new_enemy.rect.x = SCREEN_WIDTH + 100
-            new_enemy.rect.y = GAME_FLOOR - 150
-        else:  # top
-            new_enemy.rect.x = SCREEN_WIDTH // 2 - 75
-            new_enemy.rect.y = -200
-        
-        self.interior_enemies.add(new_enemy)
+        enemy = self._create_enemy_at_location(spawn_location)
+        self.interior_enemies.add(enemy)
     
     def exit_temple(self):
         """Quitter l'intérieur du temple"""
@@ -275,28 +269,34 @@ class Game:
     
     def draw_game_over_screen(self):
         """Affiche l'écran game over avec le score et le meilleur score"""
-        # overlay semi-transparent pour assombrir le background
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         overlay.set_alpha(200)
         overlay.fill((0, 0, 0))
         self.screen.blit(overlay, (0, 0))
         
-        game_over_text = self.font_large.render("GAME OVER", True, (255, 0, 0))
-        game_over_rect = game_over_text.get_rect(center=(SCREEN_WIDTH // 2, 100))
-        self.screen.blit(game_over_text, game_over_rect)
+        panel_width = 500
+        panel_height = 350
+        panel_x = SCREEN_WIDTH // 2 - panel_width // 2
+        panel_y = SCREEN_HEIGHT // 2 - panel_height // 2
         
-        current_score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
-        self.screen.blit(current_score_text, (SCREEN_WIDTH // 2 - 100, 250))
+        pygame.draw.rect(self.screen, (20, 20, 40), (panel_x, panel_y, panel_width, panel_height), border_radius=15)
+        pygame.draw.rect(self.screen, (255, 215, 0), (panel_x, panel_y, panel_width, panel_height), 4, border_radius=15)
         
-        best_score_text = self.font.render(f"Best Score: {self.best_score}", True, (255, 215, 0))
-        self.screen.blit(best_score_text, (SCREEN_WIDTH // 2 - 120, 320))
+        self._render_centered_text("GAME OVER", self.font_large, (255, 0, 0), (SCREEN_WIDTH // 2, panel_y + 40))
         
-        # Bouton restart
-        pygame.draw.rect(self.screen, (0, 128, 0), self.restart_button)
-        pygame.draw.rect(self.screen, (255, 255, 255), self.restart_button, 2)
-        restart_text = self.font.render("RESTART", True, (255, 255, 255))
-        restart_rect = restart_text.get_rect(center=self.restart_button.center)
-        self.screen.blit(restart_text, restart_rect)
+        pygame.draw.line(self.screen, (255, 215, 0), (panel_x + 30, panel_y + 90), (panel_x + panel_width - 30, panel_y + 90), 2)
+        
+        self._render_centered_text(f"Score Final: {self.score}", self.font, (200, 200, 255), (SCREEN_WIDTH // 2, panel_y + 140))
+        self._render_centered_text(f"Meilleur Score: {self.best_score}", self.font, (255, 215, 0), (SCREEN_WIDTH // 2, panel_y + 190))
+        
+        button_hover = self.restart_button.collidepoint(pygame.mouse.get_pos())
+        if button_hover:
+            pygame.draw.rect(self.screen, (0, 200, 0), self.restart_button, border_radius=8)
+        else:
+            pygame.draw.rect(self.screen, (0, 150, 0), self.restart_button, border_radius=8)
+        
+        pygame.draw.rect(self.screen, (255, 255, 255), self.restart_button, 3, border_radius=8)
+        self._render_centered_text("RESTART", self.font, (255, 255, 255), self.restart_button.center)
     
     def handle_game_over_click(self, pos):
         """Gère le clic sur le bouton restart"""
@@ -343,11 +343,9 @@ class Game:
         if not moved:
             self.player.stop_moving()
         
-        # Appuyer sur E pour quitter l'intérieur du temple
         if keys[pygame.K_e] and self.current_scene == "interior":
             self.exit_temple()
         
-        # Appuyer sur SPACE pour tirer (dans l'intérieur du temple)
         if keys[pygame.K_SPACE] and self.current_scene == "interior":
             self.player.launch_projectile()
 
@@ -360,15 +358,12 @@ class Game:
             if not self.game_over:
                 self.colision()
 
-                # deplacer tout les projectiles
                 for projectile in self.player.all_projectiles:
                     projectile.move()
 
-                # deplacer tout les pièces
                 for coin in self.coins:
                     coin.fall()
 
-                # deplacer tout les ennemies (uniquement à l'extérieur du temple)
                 if self.current_scene == "temple":
                     for enemy in self.all_ennemies:
                         enemy.move()
@@ -382,14 +377,13 @@ class Game:
             # afficher le fond d'écran approprié selon la scène
             if self.current_scene == "temple":
                 self.screen.blit(self.background_image, (0, 0))
-            else:  # interior
+            else:  
                 self.screen.blit(self.interior_image, (0, 0))
             
             # Afficher le score (utiliser le texte en cache)
             if self.score_text:
                 self.screen.blit(self.score_text, (10, 10))
             
-            # afficher les coeurs
             self.draw_hearts()
             
             # afficher les éléments selon la scène
