@@ -12,13 +12,14 @@ class Player(AnimateSprite):
         self.rect.x = 100
         self.rect.y = GAME_FLOOR
         self.speed = 3
+        self.direction = 'right'  # Direction actuelle du joueur
 
         # Groupe pour les projectiles
         self.all_projectiles = pygame.sprite.Group()
 
     def launch_projectile(self):
-        """Tire une balle"""
-        new_projectile = Projectile(self.rect.x, self.rect.y)
+        """Tire une balle dans la direction du joueur"""
+        new_projectile = Projectile(self.rect.x, self.rect.y, self.direction)
         self.all_projectiles.add(new_projectile)
 
     def move_right(self):
@@ -26,21 +27,25 @@ class Player(AnimateSprite):
         if self.rect.x + self.speed + PLAYER_WIDTH < SCREEN_WIDTH:
             self.rect.x += self.speed
             self.update_animation('right')
+        self.direction = 'right'
 
     def move_left(self):
         if self.rect.x - self.speed >=0:
             self.rect.x -= self.speed
             self.update_animation('left')
+        self.direction = 'left'
 
     def move_up(self):
         if self.rect.y - self.speed >=0:
             self.rect.y -= self.speed
             self.update_animation('up')
+        self.direction = 'up'
 
     def move_down(self):
         if self.rect.y + self.speed < GAME_FLOOR:
             self.rect.y += self.speed
             self.update_animation('down')
+        self.direction = 'down'
 
     def stop_moving(self):
         """Arrête l'animation quand le joueur ne bouge plus"""
