@@ -23,16 +23,22 @@ class Game:
         # Charger et convertir les images de fond (pour meilleure performance)
         self.background_image = self._load_image('assets/images/temple.png', SCREEN_WIDTH, SCREEN_HEIGHT)
         self.interior_image = self._load_image('assets/images/archeology_site.jpg', SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.dark_cave_image = self._load_image('assets/images/dark_cave.png', SCREEN_WIDTH, SCREEN_HEIGHT)
         
         self.current_scene = "temple"
         self.player = Player()
 
-        self.temple_gate = TempleGate(750, 400, 30, 30)
-        self.gate_group = pygame.sprite.Group()
-        self.gate_group.add(self.temple_gate)
-        
+        # Marqueurs et flèches pour le temple
         self.gate_marker_x = 800
         self.gate_marker_y = 450
+        # Zone de collision pour la flèche du temple
+        self.temple_arrow_rect = pygame.Rect(self.gate_marker_x - 40, self.gate_marker_y - 40, 80, 80)
+        
+        # Marqueurs et flèches pour la grotte
+        self.cave_marker_x = 490
+        self.cave_marker_y = 350
+        # Zone de collision pour la flèche de la grotte
+        self.cave_arrow_rect = pygame.Rect(self.cave_marker_x - 40, self.cave_marker_y - 40, 80, 80)
         
         self.arrow_offset = 0
         self.arrow_direction = 1
@@ -145,11 +151,15 @@ class Game:
             print("game over")
 
         if self.current_scene == "temple":
-            if pygame.sprite.spritecollide(self.player, self.gate_group, False):
+            # Vérifier collision avec la flèche du temple
+            if self.temple_arrow_rect.colliderect(self.player.rect):
                 self.scene_manager.enter_temple()
+            # Vérifier collision avec la flèche de la grotte
+            elif self.cave_arrow_rect.colliderect(self.player.rect):
+                self.scene_manager.enter_cave()
         
-        # Collisions intérieures du temple
-        if self.current_scene == "interior":
+        # Collisions intérieures (temple ou grotte)
+        if self.current_scene in ["interior", "dark_cave"]:
             # Vérifier si les projectiles touchent les monstres
             for projectile in self.player.all_projectiles:
                 hit_enemies = pygame.sprite.spritecollide(projectile, self.interior_enemies, False)
@@ -160,7 +170,9 @@ class Game:
                         
                         if is_dead:
                             enemy.kill()
-                            coin = AztecCoin(enemy.rect.x, enemy.rect.y)
+                            # Les pièces tombent plus vite en cave
+                            gravity = 6 if self.current_scene == "dark_cave" else 3
+                            coin = AztecCoin(enemy.rect.x, enemy.rect.y, gravity=gravity)
                             self.coins.add(coin)
                             self.score += 100
                             
@@ -234,20 +246,27 @@ class Game:
         elif keys[pygame.K_LEFT]:
             self.player.move_left()
             moved = True
-        elif keys[pygame.K_UP]:
+        elif keys[pygame.K_UP] and self.current_scene != "dark_cave":
             self.player.move_up()
             moved = True
-        elif keys[pygame.K_DOWN]:
+        elif keys[pygame.K_DOWN] and self.current_scene != "dark_cave":
             self.player.move_down()
             moved = True
 
         if not moved:
             self.player.stop_moving()
         
-        if keys[pygame.K_e] and self.current_scene == "interior":
-            self.scene_manager.exit_temple()
+        # Forcer le joueur au niveau du GAME_FLOOR en cave
+        if self.current_scene == "dark_cave":
+            self.player.rect.y = GAME_FLOOR
         
-        if keys[pygame.K_SPACE] and self.current_scene == "interior":
+        if keys[pygame.K_e]:
+            if self.current_scene == "interior":
+                self.scene_manager.exit_temple()
+            elif self.current_scene == "dark_cave":
+                self.scene_manager.exit_cave()
+        
+        if keys[pygame.K_SPACE] and self.current_scene in ["interior", "dark_cave"]:
             self.player.launch_projectile()
 
 
@@ -268,7 +287,7 @@ class Game:
                 if self.current_scene == "temple":
                     for enemy in self.all_ennemies:
                         enemy.move()
-                else:  # interior - les monstres suivent le joueur
+                elif self.current_scene in ["interior", "dark_cave"]:  # les monstres suivent le joueur
                     for enemy in self.interior_enemies:
                         enemy.follow_player(self.player)
             
@@ -283,8 +302,10 @@ class Game:
             # afficher le fond d'écran approprié selon la scène
             if self.current_scene == "temple":
                 self.screen.blit(self.background_image, (shake_x, shake_y))
-            else:  
+            elif self.current_scene == "interior":
                 self.screen.blit(self.interior_image, (shake_x, shake_y))
+            else:  # dark_cave
+                self.screen.blit(self.dark_cave_image, (shake_x, shake_y))
             
             self.ui_renderer.draw_score()
             
@@ -292,9 +313,10 @@ class Game:
             
             if self.current_scene == "temple":
                 self.all_ennemies.draw(self.screen)
-                # Afficher la flèche animée indiquant l'emplacement de la téléportation
+                # Afficher les flèches animées indiquant les entrées
                 self.ui_renderer.draw_animated_arrow(self.gate_marker_x, self.gate_marker_y)
-            else:  
+                self.ui_renderer.draw_animated_arrow(self.cave_marker_x, self.cave_marker_y)
+            else:  # interior ou dark_cave
                 if self.exit_text:
                     self.screen.blit(self.exit_text, (SCREEN_WIDTH // 2 - 220, 50))
                 

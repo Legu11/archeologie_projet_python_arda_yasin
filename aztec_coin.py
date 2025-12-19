@@ -16,14 +16,14 @@ def _get_coin_image():
 class AztecCoin(pygame.sprite.Sprite):
     """Représente une pièce aztèque qui tombe après avoir vaincu un monstre"""
     
-    def __init__(self, x, y):
+    def __init__(self, x, y, gravity=3):
         super().__init__()
         # Utiliser l'image en cache
         self.image = _get_coin_image()
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
-        self.gravity = 3
+        self.gravity = gravity
 
     def fall(self):
         """La pièce tombe avec la gravité"""
