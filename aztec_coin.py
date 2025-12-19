@@ -1,13 +1,25 @@
 import pygame
 from constants import *
 
+# Charger et préparer l'image de la pièce une seule fois
+_coin_image_cache = None
+
+def _get_coin_image():
+    """Cache la charge de l'image de la pièce"""
+    global _coin_image_cache
+    if _coin_image_cache is None:
+        _coin_image_cache = pygame.image.load('assets/images/aztec_coin.png')
+        _coin_image_cache = pygame.transform.scale(_coin_image_cache, (70, 70))
+        _coin_image_cache = _coin_image_cache.convert_alpha()
+    return _coin_image_cache
+
 class AztecCoin(pygame.sprite.Sprite):
     """Représente une pièce aztèque qui tombe après avoir vaincu un monstre"""
     
     def __init__(self, x, y):
         super().__init__()
-        self.image = pygame.image.load('assets/images/aztec_coin.png')
-        self.image = pygame.transform.scale(self.image, (70, 70))
+        # Utiliser l'image en cache
+        self.image = _get_coin_image()
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y

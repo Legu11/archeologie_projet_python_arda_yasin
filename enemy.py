@@ -2,20 +2,32 @@ import pygame
 import random
 from constants import *
 
+# Charger et préparer l'image du monstre une seule fois (pas à chaque création)
+_enemy_image_cache = None
+
+def _get_enemy_image():
+    """Cache la charge de l'image du monstre"""
+    global _enemy_image_cache
+    if _enemy_image_cache is None:
+        _enemy_image_cache = pygame.image.load('assets/images/aztec_monster.png')
+        _enemy_image_cache = pygame.transform.scale(_enemy_image_cache, (250, 250))
+        _enemy_image_cache = _enemy_image_cache.convert_alpha()
+    return _enemy_image_cache
+
 class Enemy(pygame.sprite.Sprite):
 
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load('assets/images/aztec_monster.png')
-        self.image = pygame.transform.scale(self.image, (250, 250))
+        # Utiliser l'image en cache au lieu de la charger/redimensionner à chaque fois
+        self.image = _get_enemy_image()
         self.rect = self.image.get_rect()
         self.rect.x = SCREEN_WIDTH - 50 + random.randint(10, 1000)
-        self.rect.y = GAME_FLOOR - random.randint(10,300)
+        self.rect.y = GAME_FLOOR - random.randint(10, 300)
         self.speed = 1.5
 
     def respawn(self):
         self.rect.x = SCREEN_WIDTH - 50 + random.randint(10, 1000)
-        self.rect.y = GAME_FLOOR - random.randint(10,300)
+        self.rect.y = GAME_FLOOR - random.randint(10, 300)
 
     def move(self):
         self.rect.x -= 1

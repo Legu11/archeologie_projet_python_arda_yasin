@@ -18,13 +18,14 @@ class Game:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Mon Premier Jeu")
 
-        # importer l'image d'arrière plan
+        # Charger et convertir les images de fond (pour meilleure performance)
         self.background_image = pygame.image.load('assets/images/temple.png')
         self.background_image = pygame.transform.scale(self.background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.background_image = self.background_image.convert()
         
-        # importer l'image intérieure du temple
         self.interior_image = pygame.image.load('assets/images/archeology_site.jpg')
         self.interior_image = pygame.transform.scale(self.interior_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.interior_image = self.interior_image.convert()
         
         # gestion des scènes
         self.current_scene = "temple"  # "temple" ou "interior"
@@ -53,7 +54,6 @@ class Game:
         
         # Groupe pour les pièces aztèques
         self.coins = pygame.sprite.Group()
-        
 
         # créer un score
         self.score = 0
@@ -61,15 +61,22 @@ class Game:
         self.font = pygame.font.Font(None, 30)
         self.font_large = pygame.font.Font(None, 60)
         
+        # Cache pour les textes rendus (éviter de rerender chaque frame)
+        self.score_text = None
+        self.exit_text = None
+        self.update_score_text()
+        self.update_exit_text()
+        
         # Système de santé (4 coeurs)
         self.health = 4
         self.max_health = 4
         self.last_hit_time = 0
         self.hit_cooldown = 1000  # 1 seconde de délai avant de pouvoir être touché à nouveau
         
-        # Charger l'image du coeur
+        # Charger l'image du coeur et la convertir
         self.heart_image = pygame.image.load('assets/images/red_heart.png')
         self.heart_image = pygame.transform.scale(self.heart_image, (40, 40))
+        self.heart_image = self.heart_image.convert_alpha()
 
         # État du jeu
         self.running = True
@@ -99,6 +106,14 @@ class Game:
                     json.dump({'best_score': self.best_score}, f)
             except:
                 pass
+    
+    def update_score_text(self):
+        """Met en cache le texte du score pour ne pas le re-renderer chaque frame"""
+        self.score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
+    
+    def update_exit_text(self):
+        """Met en cache le texte de sortie pour ne pas le re-renderer chaque frame"""
+        self.exit_text = self.font.render("Appuyez sur E pour quitter, SPACE pour tirer", True, (255, 255, 255))
 
     def colision(self):
         # Ne vérifier les collisions que si le jeu n'est pas terminé
@@ -128,6 +143,7 @@ class Game:
                         coin = AztecCoin(enemy.rect.x, enemy.rect.y)
                         self.coins.add(coin)
                         self.score += 100
+                        self.update_score_text()  # Mettre à jour le cache du texte
                         
                         # Respawner un monstre au même endroit
                         self.respawn_interior_enemy()
@@ -136,6 +152,7 @@ class Game:
             collected_coins = pygame.sprite.spritecollide(self.player, self.coins, True)
             for coin in collected_coins:
                 self.score += 50
+                self.update_score_text()  # Mettre à jour le cache du texte
                 print(f"Coin collected! Score: {self.score}")
             
             # Vérifier si un monstre touche le joueur
@@ -346,7 +363,7 @@ class Game:
                     for enemy in self.interior_enemies:
                         enemy.follow_player(self.player)
 
-            clock.tick(120) # 120 fps 
+            clock.tick(100) 
             self.keyboard()
             
             # afficher le fond d'écran approprié selon la scène
@@ -354,9 +371,10 @@ class Game:
                 self.screen.blit(self.background_image, (0, 0))
             else:  # interior
                 self.screen.blit(self.interior_image, (0, 0))
-            # dessiner le score
-            score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
-            self.screen.blit(score_text, (10, 10))
+            
+            # Afficher le score (utiliser le texte en cache)
+            if self.score_text:
+                self.screen.blit(self.score_text, (10, 10))
             
             # afficher les coeurs
             self.draw_hearts()
@@ -367,9 +385,9 @@ class Game:
                 # Afficher le marqueur de la porte du temple
                 self.draw_marker(self.gate_marker_x, self.gate_marker_y, color=(100, 200, 255))
             else:  # interior
-                # afficher un message pour quitter
-                exit_text = self.font.render("Appuyez sur E pour quitter, SPACE pour tirer", True, (255, 255, 255))
-                self.screen.blit(exit_text, (SCREEN_WIDTH // 2 - 220, 50))
+                # Afficher le message pour quitter (utiliser le texte en cache)
+                if self.exit_text:
+                    self.screen.blit(self.exit_text, (SCREEN_WIDTH // 2 - 220, 50))
                 
                 # Afficher les monstres intérieurs
                 self.interior_enemies.draw(self.screen)
