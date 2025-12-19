@@ -54,6 +54,16 @@ class Game:
         # créer un score
         self.score = 0
         self.font = pygame.font.Font(None, 30)
+        
+        # Système de santé (4 coeurs)
+        self.health = 4
+        self.max_health = 4
+        self.last_hit_time = 0
+        self.hit_cooldown = 1000  # 1 seconde de délai avant de pouvoir être touché à nouveau
+        
+        # Charger l'image du coeur
+        self.heart_image = pygame.image.load('assets/images/red_heart.png')
+        self.heart_image = pygame.transform.scale(self.heart_image, (30, 30))
 
 
         # maintenir allumé la fenêtre du jeu
@@ -92,16 +102,25 @@ class Game:
                 self.score += 50
                 print(f"Coin collected! Score: {self.score}")
             
-            # Vérifier si un monstre touche le joueur (game over)
+            # Vérifier si un monstre touche le joueur
             if pygame.sprite.spritecollide(self.player, self.interior_enemies, False):
-                self.running = False
-                print("game over")
+                current_time = pygame.time.get_ticks()
+                # Vérifier le cooldown pour éviter que le joueur perde plusieurs coeurs d'un coup
+                if current_time - self.last_hit_time > self.hit_cooldown:
+                    self.health -= 1
+                    self.last_hit_time = current_time
+                    print(f"Hit! Health: {self.health}/4")
+                    
+                    # Vérifier si le joueur est mort
+                    if self.health <= 0:
+                        self.running = False
+                        print("game over - no more hearts")
     
     def enter_temple(self):
         """Entrer à l'intérieur du temple"""
         self.current_scene = "interior"
         # Repositionner le joueur à l'entrée de l'intérieur
-        self.player.rect.x = 100
+        self.player.rect.x = 455
         self.player.rect.y = GAME_FLOOR
         
         # Spawn des monstres aztèques à l'intérieur
@@ -171,6 +190,16 @@ class Game:
         # Croix au centre
         pygame.draw.line(self.screen, (255, 255, 255), (x - 10, y), (x + 10, y), 2)
         pygame.draw.line(self.screen, (255, 255, 255), (x, y - 10), (x, y + 10), 2)
+    
+    def draw_hearts(self):
+        """Dessine les coeurs visuels dans le coin supérieur droit"""
+        # Position de départ pour les coeurs
+        heart_x = SCREEN_WIDTH - 40
+        heart_y = 10
+        
+        # Afficher les coeurs en fonction de la santé actuelle
+        for i in range(self.health):
+            self.screen.blit(self.heart_image, (heart_x - (i * 35), heart_y))
 
     def keyboard(self):
         keys = pygame.key.get_pressed()
@@ -235,6 +264,9 @@ class Game:
             # dessiner le score
             score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
             self.screen.blit(score_text, (10, 10))
+            
+            # afficher les coeurs
+            self.draw_hearts()
             
             # afficher les éléments selon la scène
             if self.current_scene == "temple":
