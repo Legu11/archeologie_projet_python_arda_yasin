@@ -46,12 +46,14 @@ class Game:
         self.best_score = self.load_best_score()
         self.font = pygame.font.Font(None, 30)
         self.font_large = pygame.font.Font(None, 60)
+        self.font_score = pygame.font.Font(None, 36)
         
         # Cache pour les textes rendus (éviter de rerender chaque frame)
-        self.score_text = None
         self.exit_text = None
-        self.update_score_text()
         self.update_exit_text()
+        
+        # Charger l'image du coin aztèque pour l'affichage du score
+        self.coin_icon = self._load_image('assets/images/aztec_coin.png', 32, 32)
         
         self.health = 4
         self.max_health = 4
@@ -62,6 +64,10 @@ class Game:
         self.running = True
         self.game_over = False
         self.restart_button = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 100, 200, 50)
+        
+        # Variables pour la transition simple
+        self.transition_alpha = 0
+        self.transition_active = False
 
     def _load_image(self, path, width, height):
         """Charge et redimensionne une image"""
@@ -110,9 +116,30 @@ class Game:
             except:
                 pass
     
-    def update_score_text(self):
-        """Met en cache le texte du score pour ne pas le re-renderer chaque frame"""
-        self.score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
+    def draw_transition(self):
+        """Affiche un overlay noir pour la transition"""
+        if self.transition_alpha > 0:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            overlay.set_alpha(self.transition_alpha)
+            overlay.fill((0, 0, 0))
+            self.screen.blit(overlay, (0, 0))
+    
+    def update_transition(self):
+        """Met à jour l'alpha de la transition"""
+        if self.transition_active:
+            self.transition_alpha -= 1  # Fade out progressif (très lent)
+            if self.transition_alpha <= 0:
+                self.transition_alpha = 0
+                self.transition_active = False
+    
+    def draw_score(self):
+        """Affiche le score de manière sobre avec le coin aztèque"""
+        # Afficher le coin
+        self.screen.blit(self.coin_icon, (10, 10))
+        
+        # Afficher le score à côté du coin
+        score_text = self.font_score.render(str(self.score), True, (255, 215, 0))
+        self.screen.blit(score_text, (50, 12))
     
     def update_exit_text(self):
         """Met en cache le texte de sortie pour ne pas le re-renderer chaque frame"""
@@ -151,7 +178,6 @@ class Game:
                             coin = AztecCoin(enemy.rect.x, enemy.rect.y)
                             self.coins.add(coin)
                             self.score += 100
-                            self.update_score_text()  # Mettre à jour le cache du texte
                             
                             # Respawner un monstre au même endroit
                             self.respawn_interior_enemy()
@@ -160,7 +186,6 @@ class Game:
             collected_coins = pygame.sprite.spritecollide(self.player, self.coins, True)
             for coin in collected_coins:
                 self.score += 50
-                self.update_score_text()
                 print(f"Coin collected! Score: {self.score}")
             
             # Vérifier si un monstre touche le joueur
@@ -178,12 +203,15 @@ class Game:
                         print("game over - no more hearts")
     
     def enter_temple(self):
-        """Entrer à l'intérieur du temple"""
+        """Entrer à l'intérieur du temple avec transition"""
         self.current_scene = "interior"
         self.player.rect.x = 455
         self.player.rect.y = GAME_FLOOR
         self.player.last_shot_time = 0
         self.spawn_interior_enemies()
+        # Déclencher la transition
+        self.transition_alpha = 220  # Fade rapide
+        self.transition_active = True
     
     def spawn_interior_enemies(self):
         """Spawn les monstres aztèques à l'intérieur du temple en dehors de l'écran"""
@@ -370,6 +398,9 @@ class Game:
                 else:  # interior - les monstres suivent le joueur
                     for enemy in self.interior_enemies:
                         enemy.follow_player(self.player)
+            
+            # Mettre à jour la transition
+            self.update_transition()
 
             clock.tick(100) 
             self.keyboard()
@@ -380,9 +411,8 @@ class Game:
             else:  
                 self.screen.blit(self.interior_image, (0, 0))
             
-            # Afficher le score (utiliser le texte en cache)
-            if self.score_text:
-                self.screen.blit(self.score_text, (10, 10))
+            # Afficher le score avec le coin aztèque
+            self.draw_score()
             
             self.draw_hearts()
             
@@ -411,6 +441,9 @@ class Game:
             
             if self.game_over:
                 self.draw_game_over_screen()
+            
+            # Afficher la transition
+            self.draw_transition()
             
             pygame.display.flip() # actualiser l'écran
 
