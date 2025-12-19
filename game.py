@@ -82,6 +82,9 @@ class Game:
                         coin = AztecCoin(enemy.rect.x, enemy.rect.y)
                         self.coins.add(coin)
                         self.score += 100
+                        
+                        # Respawner un monstre au même endroit
+                        self.respawn_interior_enemy()
             
             # Vérifier si le joueur ramasse les pièces
             collected_coins = pygame.sprite.spritecollide(self.player, self.coins, True)
@@ -125,6 +128,27 @@ class Game:
         enemy_top.rect.x = SCREEN_WIDTH // 2 - 75
         enemy_top.rect.y = -200
         self.interior_enemies.add(enemy_top)
+    
+    def respawn_interior_enemy(self):
+        """Respawner un nouveau monstre aléatoirement depuis un côté"""
+        import random
+        
+        # Choisir aléatoirement d'où le monstre va apparaître
+        spawn_location = random.choice(['left', 'right', 'top'])
+        
+        new_enemy = Enemy()
+        
+        if spawn_location == 'left':
+            new_enemy.rect.x = -200
+            new_enemy.rect.y = GAME_FLOOR - 150
+        elif spawn_location == 'right':
+            new_enemy.rect.x = SCREEN_WIDTH + 100
+            new_enemy.rect.y = GAME_FLOOR - 150
+        else:  # top
+            new_enemy.rect.x = SCREEN_WIDTH // 2 - 75
+            new_enemy.rect.y = -200
+        
+        self.interior_enemies.add(new_enemy)
     
     def exit_temple(self):
         """Quitter l'intérieur du temple"""
