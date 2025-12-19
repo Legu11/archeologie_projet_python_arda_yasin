@@ -16,11 +16,20 @@ class Player(AnimateSprite):
 
         # Groupe pour les projectiles
         self.all_projectiles = pygame.sprite.Group()
+        
+        # Système de cooldown pour les tirs
+        self.last_shot_time = 0  
+        self.shot_cooldown = 150  
 
     def launch_projectile(self):
-        """Tire une balle dans la direction du joueur"""
-        new_projectile = Projectile(self.rect.x, self.rect.y, self.direction)
-        self.all_projectiles.add(new_projectile)
+        """Tire une balle dans la direction du joueur avec cooldown"""
+        current_time = pygame.time.get_ticks()
+        
+        # Vérifier si le cooldown est écoulé
+        if current_time - self.last_shot_time >= self.shot_cooldown:
+            new_projectile = Projectile(self.rect.x, self.rect.y, self.direction)
+            self.all_projectiles.add(new_projectile)
+            self.last_shot_time = current_time
 
     def move_right(self):
         # verifier si on sort pas de l'écran a droite

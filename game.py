@@ -42,6 +42,11 @@ class Game:
         self.gate_marker_x = 800
         self.gate_marker_y = 450
         
+        # Animation de la flèche pour indiquer la direction du temple
+        self.arrow_offset = 0  # Décalage vertical pour l'animation
+        self.arrow_direction = 1  # 1 pour monter, -1 pour descendre
+        self.arrow_speed = 0.5  # Vitesse d'animation
+        
         # Position du marqueur intérieur (où le joueur arrive en entrant)
         self.interior_marker_x = 100
         self.interior_marker_y = GAME_FLOOR
@@ -177,6 +182,9 @@ class Game:
         self.player.rect.x = 455
         self.player.rect.y = GAME_FLOOR
         
+        # Réinitialiser le cooldown de tir
+        self.player.last_shot_time = 0
+        
         # Spawn des monstres aztèques à l'intérieur
         self.spawn_interior_enemies()
     
@@ -235,6 +243,39 @@ class Game:
         self.coins.empty()
         self.player.all_projectiles.empty()
 
+    def draw_animated_arrow(self, x, y):
+        """Dessine une flèche animée qui monte et descend pour indiquer l'emplacement de la téléportation"""
+        # Mettre à jour l'animation
+        self.arrow_offset += self.arrow_speed * self.arrow_direction
+        
+        # Inverser la direction quand la flèche atteint les limites
+        if self.arrow_offset >= 20 or self.arrow_offset <= -20:
+            self.arrow_direction *= -1
+        
+        # Position finale avec le décalage animé
+        arrow_y = y + self.arrow_offset
+        
+        # Dessiner la flèche (triangle pointant vers le haut)
+        arrow_size = 25
+        
+        # Pointe de la flèche
+        tip = (x, arrow_y - arrow_size)
+        
+        # Base de la flèche
+        left_base = (x - arrow_size, arrow_y)
+        right_base = (x + arrow_size, arrow_y)
+        
+        # Remplir la flèche avec une couleur dorée
+        points = [tip, left_base, right_base]
+        pygame.draw.polygon(self.screen, (255, 215, 0), points)
+        
+        # Bordure de la flèche en blanc
+        pygame.draw.polygon(self.screen, (255, 255, 255), points, 3)
+        
+        # Ajouter une barre sous la flèche pour plus de visibilité
+        pygame.draw.line(self.screen, (255, 215, 0), left_base, right_base, 4)
+        pygame.draw.line(self.screen, (255, 255, 255), left_base, right_base, 2)
+    
     def draw_marker(self, x, y, color=(100, 255, 100), radius=20):
         """Dessine un marqueur visible à une position donnée"""
         # Cercle principal
@@ -382,8 +423,8 @@ class Game:
             # afficher les éléments selon la scène
             if self.current_scene == "temple":
                 self.all_ennemies.draw(self.screen)
-                # Afficher le marqueur de la porte du temple
-                self.draw_marker(self.gate_marker_x, self.gate_marker_y, color=(100, 200, 255))
+                # Afficher la flèche animée indiquant l'emplacement de la téléportation
+                self.draw_animated_arrow(self.gate_marker_x, self.gate_marker_y)
             else:  # interior
                 # Afficher le message pour quitter (utiliser le texte en cache)
                 if self.exit_text:
