@@ -140,18 +140,24 @@ class Game:
         if self.current_scene == "interior":
             # Vérifier si les projectiles touchent les monstres
             for projectile in self.player.all_projectiles:
-                hit_enemies = pygame.sprite.spritecollide(projectile, self.interior_enemies, True)
+                hit_enemies = pygame.sprite.spritecollide(projectile, self.interior_enemies, False)
                 if hit_enemies:
                     projectile.kill()
                     for enemy in hit_enemies:
-                        # Laisser tomber une pièce
-                        coin = AztecCoin(enemy.rect.x, enemy.rect.y)
-                        self.coins.add(coin)
-                        self.score += 100
-                        self.update_score_text()  # Mettre à jour le cache du texte
+                        # Infliger des dégâts à l'ennemi
+                        is_dead = enemy.take_damage(1)
                         
-                        # Respawner un monstre au même endroit
-                        self.respawn_interior_enemy()
+                        # Si l'ennemi est mort
+                        if is_dead:
+                            enemy.kill()
+                            # Laisser tomber une pièce
+                            coin = AztecCoin(enemy.rect.x, enemy.rect.y)
+                            self.coins.add(coin)
+                            self.score += 100
+                            self.update_score_text()  # Mettre à jour le cache du texte
+                            
+                            # Respawner un monstre au même endroit
+                            self.respawn_interior_enemy()
             
             # Vérifier si le joueur ramasse les pièces
             collected_coins = pygame.sprite.spritecollide(self.player, self.coins, True)
@@ -285,6 +291,26 @@ class Game:
         # Croix au centre
         pygame.draw.line(self.screen, (255, 255, 255), (x - 10, y), (x + 10, y), 2)
         pygame.draw.line(self.screen, (255, 255, 255), (x, y - 10), (x, y + 10), 2)
+    
+    def draw_enemy_health_bars(self):
+        """Dessine les barres de vie de tous les ennemis"""
+        for enemy in self.interior_enemies:
+            # Position de la barre (au-dessus du monstre)
+            bar_width = 40
+            bar_height = 5
+            bar_x = enemy.rect.centerx - bar_width // 2
+            bar_y = enemy.rect.top - 15
+            
+            # Barre de fond (rouge)
+            pygame.draw.rect(self.screen, (200, 0, 0), (bar_x, bar_y, bar_width, bar_height))
+            
+            # Barre de santé (vert)
+            health_percentage = enemy.health / enemy.max_health
+            health_width = bar_width * health_percentage
+            pygame.draw.rect(self.screen, (0, 255, 0), (bar_x, bar_y, health_width, bar_height))
+            
+            # Bordure blanche
+            pygame.draw.rect(self.screen, (255, 255, 255), (bar_x, bar_y, bar_width, bar_height), 1)
     
     def draw_hearts(self):
         """Dessine les coeurs visuels dans le coin supérieur droit"""
@@ -432,6 +458,9 @@ class Game:
                 
                 # Afficher les monstres intérieurs
                 self.interior_enemies.draw(self.screen)
+                
+                # Afficher les barres de vie des monstres
+                self.draw_enemy_health_bars()
                 
                 # Afficher les pièces
                 self.coins.draw(self.screen)

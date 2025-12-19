@@ -24,6 +24,10 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x = SCREEN_WIDTH - 50 + random.randint(10, 1000)
         self.rect.y = GAME_FLOOR - random.randint(10, 300)
         self.speed = 3
+        
+        # Système de santé
+        self.max_health = 3
+        self.health = self.max_health
 
     def respawn(self):
         self.rect.x = SCREEN_WIDTH - 50 + random.randint(10, 1000)
@@ -50,3 +54,8 @@ class Enemy(pygame.sprite.Sprite):
             
             self.rect.x += dx
             self.rect.y += dy
+
+    def take_damage(self, damage=1):
+        """Réduit la santé de l'ennemi"""
+        self.health -= damage
+        return self.health <= 0  # Retourne True si l'ennemi est mort
