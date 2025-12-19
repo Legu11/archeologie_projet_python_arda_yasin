@@ -125,3 +125,4 @@ class UIRenderer:
         
         pygame.draw.rect(self.game.screen, (255, 255, 255), self.game.restart_button, 3, border_radius=8)
         self._render_centered_text("RESTART", self.game.font, (255, 255, 255), self.game.restart_button.center)
+

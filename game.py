@@ -80,6 +80,23 @@ class Game:
         
         # Gestionnaire UI
         self.ui_renderer = UIRenderer(self)
+        
+        # Charger la musique d'ambiance
+        self._load_and_play_music()
+
+    def _load_and_play_music(self):
+        """Charge et joue la musique d'ambiance en boucle"""
+        music_path = 'sound/aztec_temple_atmosphere.mp3'
+        if os.path.exists(music_path):
+            try:
+                pygame.mixer.music.load(music_path)
+                pygame.mixer.music.play(-1)  # -1 signifie boucler indéfiniment
+                pygame.mixer.music.set_volume(0.7)  # Volume à 70%
+                print(f"Musique chargée: {music_path}")
+            except Exception as e:
+                print(f"Erreur au chargement de la musique: {e}")
+        else:
+            print(f"Fichier de musique non trouvé: {music_path}")
 
     def _load_image(self, path, width, height):
         """Charge et redimensionne une image"""
@@ -91,7 +108,6 @@ class Game:
 
 
     def load_best_score(self):
-        """Charge le meilleur score depuis le fichier JSON"""
         if os.path.exists(self.SCORES_FILE):
             try:
                 with open(self.SCORES_FILE, 'r') as f:
@@ -102,7 +118,6 @@ class Game:
         return 0
     
     def save_best_score(self):
-        """Sauvegarde le meilleur score dans un fichier JSON"""
         if self.score > self.best_score:
             self.best_score = self.score
             try:
@@ -123,14 +138,12 @@ class Game:
         # Ne vérifier les collisions que si le jeu n'est pas terminé
         if self.game_over:
             return
-        
-        # verifier si un ennemie touche le joueur
+
         if pygame.sprite.spritecollide(self.player, self.all_ennemies, True):
             self.game_over = True
             self.save_best_score()
             print("game over")
 
-        # vérifier si le joueur touche la porte du temple
         if self.current_scene == "temple":
             if pygame.sprite.spritecollide(self.player, self.gate_group, False):
                 self.scene_manager.enter_temple()
@@ -145,18 +158,14 @@ class Game:
                     for enemy in hit_enemies:
                         is_dead = enemy.take_damage(1)
                         
-                        # Si l'ennemi est mort
                         if is_dead:
                             enemy.kill()
-                            # Laisser tomber une pièce
                             coin = AztecCoin(enemy.rect.x, enemy.rect.y)
                             self.coins.add(coin)
                             self.score += 100
                             
-                            # Respawner un monstre au même endroit
                             self.scene_manager.respawn_interior_enemy()
             
-            # Vérifier si le joueur ramasse les pièces
             collected_coins = pygame.sprite.spritecollide(self.player, self.coins, True)
             for coin in collected_coins:
                 self.score += 50
@@ -169,7 +178,7 @@ class Game:
                 if current_time - self.last_hit_time > self.hit_cooldown:
                     self.health -= 1
                     self.last_hit_time = current_time
-                    self.shake_animation.trigger()  # Déclencher l'effet de hit
+                    self.shake_animation.trigger()  
                     print(f"Hit! Health: {self.health}/4")
                     
                     if self.health <= 0:
@@ -263,7 +272,6 @@ class Game:
                     for enemy in self.interior_enemies:
                         enemy.follow_player(self.player)
             
-            # Mettre à jour la transition
             self.scene_manager.update_transition()
 
             clock.tick(100) 
@@ -278,28 +286,22 @@ class Game:
             else:  
                 self.screen.blit(self.interior_image, (shake_x, shake_y))
             
-            # Afficher le score avec le coin aztèque
             self.ui_renderer.draw_score()
             
             self.ui_renderer.draw_hearts()
             
-            # afficher les éléments selon la scène
             if self.current_scene == "temple":
                 self.all_ennemies.draw(self.screen)
                 # Afficher la flèche animée indiquant l'emplacement de la téléportation
                 self.ui_renderer.draw_animated_arrow(self.gate_marker_x, self.gate_marker_y)
-            else:  # interior
-                # Afficher le message pour quitter (utiliser le texte en cache)
+            else:  
                 if self.exit_text:
                     self.screen.blit(self.exit_text, (SCREEN_WIDTH // 2 - 220, 50))
                 
-                # Afficher les monstres intérieurs
                 self.interior_enemies.draw(self.screen)
                 
-                # Afficher les barres de vie des monstres
                 self.ui_renderer.draw_enemy_health_bars()
                 
-                # Afficher les pièces
                 self.coins.draw(self.screen)
             
             # Afficher les projectiles

@@ -28,7 +28,7 @@ class SceneManager:
         self.game.player.last_shot_time = 0
         self.spawn_interior_enemies()
 
-        self.game.transition_alpha = 150  # Fade rapide
+        self.game.transition_alpha = 200  # Fade rapide
         self.game.transition_active = True
     
     def exit_temple(self):
