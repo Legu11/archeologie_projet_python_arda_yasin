@@ -23,7 +23,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = SCREEN_WIDTH - 50 + random.randint(10, 1000)
         self.rect.y = GAME_FLOOR - random.randint(10, 300)
-        self.speed = 3
+        self.speed = 1.5
         
         # Système de santé
         self.max_health = 3

@@ -19,7 +19,7 @@ class Player(AnimateSprite):
         
         # Système de cooldown pour les tirs
         self.last_shot_time = 0  
-        self.shot_cooldown = 150  
+        self.shot_cooldown = 70  
 
     def launch_projectile(self):
         """Tire une balle dans la direction du joueur avec cooldown"""

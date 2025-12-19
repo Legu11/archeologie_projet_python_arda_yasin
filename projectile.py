@@ -9,7 +9,7 @@ def _get_projectile_image():
     global _projectile_image_cache
     if _projectile_image_cache is None:
         _projectile_image_cache = pygame.image.load('assets/images/bullet_attack.png')
-        _projectile_image_cache = pygame.transform.scale(_projectile_image_cache, (50, 50))
+        _projectile_image_cache = pygame.transform.scale(_projectile_image_cache, (90, 90))
         _projectile_image_cache = _projectile_image_cache.convert_alpha()
     return _projectile_image_cache
 
