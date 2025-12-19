@@ -41,9 +41,9 @@ class Game:
 
         # creer le groupe avec les ennemies
         self.all_ennemies = pygame.sprite.Group()
-        #self.all_ennemies.add(Enemy())
-        #self.all_ennemies.add(Enemy())
-        #self.all_ennemies.add(Enemy())
+        self.all_ennemies.add(Enemy())
+        self.all_ennemies.add(Enemy())
+        self.all_ennemies.add(Enemy())
         
 
         # créer un score

@@ -6,7 +6,7 @@ class Enemy(pygame.sprite.Sprite):
 
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load('assets/images/monster_omori.png')
+        self.image = pygame.image.load('assets/images/aztec_monster.png')
         self.image = pygame.transform.scale(self.image, (150, 150))
         self.rect = self.image.get_rect()
         self.rect.x = SCREEN_WIDTH - 50 + random.randint(10, 1000)
